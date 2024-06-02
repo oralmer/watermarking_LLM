@@ -122,7 +122,7 @@ def generate_payloaded_response(key, model, tokenizer, prompt, payload, length=3
                 output = model(inputs)
 
         probs = torch.nn.functional.softmax(output.logits[:, -1, : len(tokenizer)]/temperature, dim=-1).cpu()[0, :]
-        probs_permed = apply_perm(probs, perm)
+        probs_permed = apply_perm(probs, inv_perm)
         token_id = 0
         for ind in range(blen):
             p0, p1 = binarize_next(probs_permed, ind, blen, token_id)
