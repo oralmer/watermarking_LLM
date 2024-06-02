@@ -43,7 +43,7 @@ def generate_response_binarize(model, tokenizer, prompt, length=30):
         for ind in range(blen):
             p0, p1 = binarize_next(probs, ind, blen, token_id)
             token_id = token_id << 1
-            if random.random() < p1 / (p0 + p1):
+            if random.random() < p1/(p0+p1):
                 token_id += 1
 
         token = torch.tensor([[token_id]])
@@ -74,7 +74,7 @@ def generate_watermarked_response(key, model, tokenizer, prompt, length=30):
         for ind in range(blen):
             p0, p1 = binarize_next(probs, ind, blen, token_id)
             token_id = token_id << 1
-            if PRF(key, [i, ind]) < p1 / (p0 + p1):
+            if PRF(key, [i, ind]) < p1/(p0+p1):
                 token_id += 1
 
         token = torch.tensor([[token_id]])
@@ -92,24 +92,22 @@ def compute_score(key, text, tokenizer):
     score = 0
     tokens = tokenize(text, tokenizer)[0]
     for i in range(len(tokens)):
-        token_bits = ("0" * blen + bin(tokens[i])[2:])[-blen:]
+        token_bits = ("0"*blen + bin(tokens[i])[2:])[-blen:]
         for ind in range(blen):
             score += compute_score_function(key, [i, ind], token_bits[ind])
-    return normalize_score(score, blen * len(tokens))
+    return normalize_score(score, blen*len(tokens))
 
 
 # Generation a response with payload (steganography)
-def generate_payloaded_response(key, model, tokenizer, prompt, payload, length=30, threshold=2, bit_limit=None,
-                                temperature=1.0):
+def generate_payloaded_response(key, model, tokenizer, prompt, payload, length=30, threshold=2, bit_limit=None, temperature=1.0):
     prompt_len = len(prompt)
     prompt = tokenize(prompt, tokenizer)
     inputs = prompt.to(model.device)
     attn = torch.ones_like(inputs)
-    perm, inv_perm = consistent_perm(key,
-                                     len(tokenizer))  # Not necessary, but makes the token indices spread uniformly.
+    perm, inv_perm = consistent_perm(key, len(tokenizer))    # Not necessary, but makes the token indices spread uniformly.
     blen, token_to_id, id_to_token = binarize_setup(tokenizer)
     if bit_limit:
-        assert (bit_limit <= blen)
+        assert(bit_limit <= blen)
 
     ecc = DynamicECC(payload)
     symbol = ecc.next_symbol()
@@ -129,7 +127,7 @@ def generate_payloaded_response(key, model, tokenizer, prompt, payload, length=3
         for ind in range(blen):
             p0, p1 = binarize_next(probs_permed, ind, blen, token_id)
             token_id = token_id << 1
-            if PRF(key, [i, ind, symbol]) < p1 / (p0 + p1):
+            if PRF(key, [i, ind, symbol]) < p1/(p0+p1):
                 token_id += 1
 
             # Update symbol scores and ECC, only for the first bit_limit bits of each token
@@ -144,6 +142,7 @@ def generate_payloaded_response(key, model, tokenizer, prompt, payload, length=3
                         score_length = 0
                         break
 
+
         token = torch.tensor([[inv_perm[token_id]]])
         inputs = torch.cat([inputs, token], dim=-1)
 
@@ -155,27 +154,26 @@ def generate_payloaded_response(key, model, tokenizer, prompt, payload, length=3
 
 # Retrieving the payload
 def extract_payload(key, text, tokenizer, threshold=2, bit_limit=None, skip_prefix=0):
-    stream = []
-    scores = {'0': 0, '1': 0, '<': 0}
-    score_length = 0
-    perm, inv_perm = consistent_perm(key,
-                                     len(tokenizer))  # Not necessary, but makes the token indices spread uniformly.
-    blen, token_to_id, id_to_token = binarize_setup(tokenizer)
-    tokens = tokenize(text, tokenizer)[0][skip_prefix:]
-    for i in range(len(tokens)):
-        token_bits = ("0" * blen + bin(perm[tokens[i]])[2:])[-blen:]
-        for ind in range(blen):
-            if (not bit_limit) or (ind < bit_limit):
-                score_length += 1
-                for s in ['0', '1', '<']:
-                    scores[s] += compute_score_function(key, [i, ind, s], token_bits[ind])
-                    if normalize_score(scores[s], score_length) > threshold:
-                        stream.append(s)
-                        scores = {'0': 0, '1': 0, '<': 0}
-                        score_length = 0
-                        break
+     stream = []
+     scores = {'0': 0, '1': 0, '<': 0}
+     score_length = 0
+     perm, inv_perm = consistent_perm(key, len(tokenizer))  # Not necessary, but makes the token indices spread uniformly.
+     blen, token_to_id, id_to_token = binarize_setup(tokenizer)
+     tokens = tokenize(text, tokenizer)[0][skip_prefix:]
+     for i in range(len(tokens)):
+         token_bits = ("0"*blen + bin(perm[tokens[i]])[2:])[-blen:]
+         for ind in range(blen):
+             if (not bit_limit) or (ind < bit_limit):
+                 score_length += 1
+                 for s in ['0', '1', '<']:
+                     scores[s] += compute_score_function(key, [i, ind, s], token_bits[ind])
+                     if normalize_score(scores[s], score_length) > threshold:
+                         stream.append(s)
+                         scores = {'0': 0, '1': 0, '<': 0}
+                         score_length = 0
+                         break
 
-    return DynamicECC.decode(stream)
+     return DynamicECC.decode(stream)
 
 
 if __name__ == '__main__':
@@ -188,7 +186,7 @@ if __name__ == '__main__':
 
     # --- The plot from the paper (Figure 2) ---
     model, tokenizer = start_model("gpt2")
-    prompts = [  # Taken from the GPT-2 official example prompts https://openai.com/research/better-language-models
+    prompts = [     # Taken from the GPT-2 official example prompts https://openai.com/research/better-language-models
         "In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.",
         "A train carriage containing controlled nuclear materials was stolen in Cincinnati today. Its whereabouts are unknown.",
         "Miley Cyrus was caught shoplifting from Abercrombie and Fitch on Hollywood Boulevard today.",
@@ -197,14 +195,14 @@ if __name__ == '__main__':
         "John F. Kennedy was just elected President of the United States after rising from the grave decades after his assassination. Due to miraculous developments in nanotechnology, Kennedy's brain was rebuilt from his remains and installed in the control center of a state-of-the art humanoid robot. Below is a transcript of his acceptance speech."
     ]
     response_sizes = [20, 40, 60, 80, 100]
-    samples_per_size = 100  # Set to 10 for a quicker run
+    samples_per_size = 100 # Set to 10 for a quicker run
 
     for size in response_sizes:
         acc = 0
         print("Making samples of size " + str(size) + ":")
         for i in range(samples_per_size):
             res, ecc = generate_payloaded_response(random.random(), model, tokenizer, random.choice(prompts),
-                                                   CompactText.text_to_bits("EXAMPLE PAYLOAD" * 5), size)
+                                                   CompactText.text_to_bits("EXAMPLE PAYLOAD"*5), size)
             print("Run ended while hiding " + str(ecc.last_index_written + 1) + " bits.")
             acc += ecc.last_index_written + 1
-        print("On average, encoded " + str(acc / samples_per_size) + " bits.\n")
+        print("On average, encoded " + str(acc/samples_per_size) + " bits.\n")
