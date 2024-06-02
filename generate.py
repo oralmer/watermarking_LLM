@@ -234,11 +234,12 @@ if __name__ == "__main__":
         "For today's homework assignment, please describe the reasons for the US Civil War.",
         "John F. Kennedy was just elected President of the United States after rising from the grave decades after his assassination. Due to miraculous developments in nanotechnology, Kennedy's brain was rebuilt from his remains and installed in the control center of a state-of-the art humanoid robot. Below is a transcript of his acceptance speech.",
     ]
-    response_sizes = [20, 60]
-    samples_per_size = 10  # Set to 10 for a quicker run
+    response_sizes = [100]
+    samples_per_size = 100  # Set to 10 for a quicker run
 
     for size in response_sizes:
         total_score = 0
+        total_successes = 0
         print("Making samples of size " + str(size) + ":")
         for i in range(samples_per_size):
             key = random.random()
@@ -252,4 +253,7 @@ if __name__ == "__main__":
             score = compute_score(key, res, tokenizer)
             print(f"Run ended with score {score}")
             total_score += score
-        print(f"On average, scored {total_score / samples_per_size}")
+            if score > 0:
+                total_successes += 1
+        print(f"On average, scored {total_score / samples_per_size} .")
+        print(f"Succeeded in {total_successes} / {samples_per_size} attempts.")
