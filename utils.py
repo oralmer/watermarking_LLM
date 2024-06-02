@@ -21,20 +21,22 @@ def consistent_perm(key, n):
 
 
 def apply_perm(vector, inv_perm):
-    assert (len(vector) == len(inv_perm))
+    assert len(vector) == len(inv_perm)
     result = vector[inv_perm].clone().detach()
     return result
 
 
 def start_model(model_name="gpt2"):
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
     return model, tokenizer
 
 
 def tokenize(prompt, tokenizer):
-    return tokenizer.encode(prompt, return_tensors='pt', truncation=True, max_length=2048)
+    return tokenizer.encode(
+        prompt, return_tensors="pt", truncation=True, max_length=2048
+    )
 
 
 def detokenize(tokenized, tokenizer):
@@ -49,8 +51,14 @@ def binarize_setup(tokenizer):
 
 
 def binarize_next(probs, ind=0, blen=16, prefix=0):
-    relevant_probs = probs[prefix << (blen - ind): min((prefix + 1) << (blen - ind), len(probs))]
-    indecies = torch.arange(prefix << (blen - ind), min((prefix + 1) << (blen - ind), len(probs)), dtype=torch.int32)
+    relevant_probs = probs[
+        prefix << (blen - ind) : min((prefix + 1) << (blen - ind), len(probs))
+    ]
+    indecies = torch.arange(
+        prefix << (blen - ind),
+        min((prefix + 1) << (blen - ind), len(probs)),
+        dtype=torch.int32,
+    )
     is_for_p0 = (indecies >> (blen - ind - 1)) % 2 == 0
     p0 = torch.tensor([relevant_probs[is_for_p0].sum()])
     p1 = torch.tensor([relevant_probs[~is_for_p0].sum()])
@@ -63,5 +71,5 @@ def normalize_score(score, length):
 
 def compute_score_function(key, prf_input, bit):
     u = PRF(key, prf_input)
-    v = (u if bit == '1' else (1 - u))
+    v = u if bit == "1" else (1 - u)
     return -math.log(v)
