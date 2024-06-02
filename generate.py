@@ -95,7 +95,6 @@ def generate_watermarked_response(key, model, tokenizer, prompt, length=30):
             token_id = token_id << 1
             if PRF(key, [i, ind]) < p1 / (p0 + p1):
                 token_id += 1
-
         token = torch.tensor([[token_id]])
         inputs = torch.cat([inputs, token], dim=-1)
 
@@ -234,7 +233,7 @@ if __name__ == "__main__":
         "For today's homework assignment, please describe the reasons for the US Civil War.",
         "John F. Kennedy was just elected President of the United States after rising from the grave decades after his assassination. Due to miraculous developments in nanotechnology, Kennedy's brain was rebuilt from his remains and installed in the control center of a state-of-the art humanoid robot. Below is a transcript of his acceptance speech.",
     ]
-    response_sizes = [100]
+    response_sizes = [10]
     samples_per_size = 100  # Set to 10 for a quicker run
 
     for size in response_sizes:
@@ -243,14 +242,15 @@ if __name__ == "__main__":
         print("Making samples of size " + str(size) + ":")
         for i in range(samples_per_size):
             key = random.random()
+            prompt = random.choice(prompts)
             res = generate_watermarked_response(
                 key=key,
                 model=model,
                 tokenizer=tokenizer,
-                prompt=random.choice(prompts),
+                prompt=prompt,
                 length=size,
             )
-            score = compute_score(key, res, tokenizer)
+            score = compute_score(key, res[len(prompt) :], tokenizer)
             print(f"Run ended with score {score}")
             total_score += score
             if score > 0:
