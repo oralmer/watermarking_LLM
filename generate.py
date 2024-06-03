@@ -161,7 +161,7 @@ def generate_payloaded_response(
         for ind in range(blen):
             p0, p1 = binarize_next(probs_permed, ind, blen, token_id)
             token_id = token_id << 1
-            if PRF(key, [i, ind, symbol]) < p1 / (p0 + p1):
+            if PRF(key, [i, ind, symbol]) / (p0 + p1) < p1:
                 token_id += 1
 
             # Update symbol scores and ECC, only for the first bit_limit bits of each token
@@ -234,8 +234,7 @@ if __name__ == "__main__":
         "John F. Kennedy was just elected President of the United States after rising from the grave decades after his assassination. Due to miraculous developments in nanotechnology, Kennedy's brain was rebuilt from his remains and installed in the control center of a state-of-the art humanoid robot. Below is a transcript of his acceptance speech.",
     ]
     response_sizes = [10]
-    samples_per_size = 100  # Set to 10 for a quicker run
-
+    samples_per_size = 40  # Set to 10 for a quicker run
     for size in response_sizes:
         total_score = 0
         total_successes = 0
