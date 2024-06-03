@@ -161,7 +161,7 @@ def generate_payloaded_response(
         for ind in range(blen):
             p0, p1 = binarize_next(probs_permed, ind, blen, token_id)
             token_id = token_id << 1
-            if PRF(key, [i, ind, symbol]) / (p0 + p1) < p1:
+            if PRF(key, [i, ind, symbol]) < p1 / (p0 + p1):
                 token_id += 1
 
             # Update symbol scores and ECC, only for the first bit_limit bits of each token
