@@ -56,10 +56,10 @@ class PRC:
         return (self.G @ u) + self.z + e
 
     def validate_codeword(self, x: GF):
-        return (
-            np.array((self.P @ x) + (self.P @ self.z)).sum()
-            < self.failure_rate * self.P.shape[0]
-        )
+        return self.score_codeword(x) < self.failure_rate * self.P.shape[0]
+
+    def score_codeword(self, x: GF):
+        return np.array((self.P @ x) + (self.P @ self.z)).sum()
 
 
 if __name__ == "__main__":
