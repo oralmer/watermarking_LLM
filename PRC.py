@@ -33,12 +33,16 @@ class PRC:
         noise_probability: float,
         failure_rate: float,
     ) -> "PRC":
+        assert word_length > num_conditions
+        assert word_length > random_bits
         rng = default_rng()
         P = binary_field.Zeros((num_conditions, word_length), dtype=np.int8)
-        for i in range(num_conditions):
-            P[i, rng.choice(word_length, size=condition_sparseness, replace=False)] = 1
+        while np.linalg.matrix_rank(P) != num_conditions:
+            for i in range(num_conditions):
+                P[
+                    i, rng.choice(word_length, size=condition_sparseness, replace=False)
+                ] = 1
         null_basis = P.null_space()
-        assert null_basis.shape[0] > random_bits / 2
         G = binary_field.Zeros((word_length, random_bits))
         for i in range(random_bits):
             rand_vec = binary_field.Random(null_basis.shape[0])
@@ -79,7 +83,22 @@ def get_success_ratio(prc: PRC, num_checks=100) -> float:
         rand = binary_field.Random(prc.word_length)
         successes += int(prc.validate_codeword(word))
         fails += int(prc.validate_codeword(rand))
+    print("fails: ", fails, fails / num_checks)
+    print("successes: ", successes, successes / num_checks)
     return successes / (fails + successes + 1)
+
+
+def get_scores(prc: PRC, num_checks=100) -> (float, float):
+    successes = 0
+    fails = 0
+    for i in range(num_checks):
+        word = prc.generate_codeword()
+        rand = binary_field.Random(prc.word_length)
+        successes += prc.score_codeword(word) / prc.num_conditions
+        fails += prc.score_codeword(rand) / prc.num_conditions
+    print("fails: ", fails / num_checks)
+    print("successes: ", successes / num_checks)
+    return successes, fails
 
 
 if __name__ == "__main__":
@@ -89,21 +108,47 @@ if __name__ == "__main__":
         random_bits: int,
         num_conditions: int,
         condition_sparseness: int,
+        failure_rate: float,
+        num_regens: int = 3,
+        num_checks: int = 1000,
     ):
-        # it's negative
-        return -get_success_ratio(
-            PRC.generate_from_params(
-                16 * 8, random_bits, num_conditions, condition_sparseness, 0.4, 0.45
+        try:
+            # We want to minimize so it's negative.
+            return (
+                sum(
+                    -get_success_ratio(
+                        PRC.generate_from_params(
+                            16 * 4,
+                            random_bits,
+                            num_conditions,
+                            condition_sparseness,
+                            0.3,
+                            failure_rate,
+                        ),
+                        num_checks=num_checks // num_regens,
+                    )
+                    for _ in range(num_regens)
+                )
+                / num_regens
             )
-        )
+        except Exception as e:
+            print(e)
+            return 0
 
+    # for _ in range(1):
+    #     target(30, 40, 2, 0.4)
+    get_scores(PRC.generate_from_params(16 * 6, 30, 70, 3, 0.2, 0.4), 3000)
+    exit(1)
     # Discrete, ordered
     random_bits = ng.p.TransitionChoice(range(5, 70))
     num_conditions = ng.p.TransitionChoice(range(16, 70))
     condition_sparseness = ng.p.TransitionChoice(range(3, 17, 2))
-    params = ng.p.Instrumentation(random_bits, num_conditions, condition_sparseness)
+    failure_rate = ng.p.Scalar(lower=0, upper=0.5)
+    params = ng.p.Instrumentation(
+        random_bits, num_conditions, condition_sparseness, failure_rate
+    )
     optimizer = ng.optimizers.DiscreteOnePlusOne(
-        parametrization=params, budget=300, num_workers=1
+        parametrization=params, budget=500, num_workers=1
     )
 
     for _ in range(optimizer.budget):
