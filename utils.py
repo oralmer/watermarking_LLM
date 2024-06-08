@@ -1,5 +1,7 @@
 import random
 import math
+
+import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -11,9 +13,9 @@ def PRF(key, input):
 
 
 def consistent_perm(key, n):
-    perm = list(range(n))
-    random.seed(str(key))
-    random.shuffle(perm)
+    perm = np.arange(n)
+    rng = np.random.default_rng(hash(key) % (2**32))
+    rng.shuffle(perm)
     inv_perm = [0 for _ in range(n)]
     for i in range(n):
         inv_perm[perm[i]] = i

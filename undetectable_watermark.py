@@ -13,6 +13,8 @@ from utils import (
     PRF,
     compute_score_function,
     normalize_score,
+    consistent_perm,
+    apply_perm,
 )
 
 
@@ -43,6 +45,9 @@ class UndetectableWatermark:
         curr_entropy = 0
         curr_biased_token = 0
         curr_key = self.base_key
+        perm, inv_perm = consistent_perm(
+            self.base_key, len(tokenizer)
+        )  # Not necessary, but makes the token indices spread uniformly.
         for i in range(length):
             with torch.no_grad():
                 if past:
@@ -55,6 +60,7 @@ class UndetectableWatermark:
             probs = torch.nn.functional.softmax(
                 output.logits[:, -1, :vocab_size], dim=-1
             ).cpu()[0, :]
+            probs = apply_perm(probs, inv_perm)
             token_id = 0
             # Switch states only between tokens.
             if encode_random or curr_entropy < self.security:
@@ -125,14 +131,14 @@ if __name__ == "__main__":
     ]
     response_sizes = [30]
     samples_per_size = 20  # Set to 10 for a quicker run
-    watermarker = UndetectableWatermark(10, 20, 10, "", model, tokenizer)
+    key = random.random()
+    watermarker = UndetectableWatermark(10, 10, 7, str(key), model, tokenizer)
     total_max = 0
     total_average = 0
     for size in response_sizes:
         total_score = 0
         print("Making samples of size " + str(size) + ":")
         for i in range(samples_per_size):
-            key = random.random()
             prompt = random.choice(prompts)
             res = watermarker.generate(prompt=prompt, length=size, encode_random=False)
             scores = watermarker.calculate_scores(res[len(prompt) :])
