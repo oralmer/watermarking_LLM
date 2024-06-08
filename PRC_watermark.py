@@ -1,5 +1,5 @@
 import random
-from math import ceil
+from math import ceil, log, log2
 
 import numpy as np
 import torch
@@ -19,10 +19,12 @@ class PRC_watermark:
         inputs = prompt.to(self.model.device)
         attn = torch.ones_like(inputs)
         blen, token_to_id, id_to_token = binarize_setup(self.tokenizer)
+        print(token_to_id)
         past = None
         vocab_size = len(self.tokenizer)
         curr_word = []
         num_changed = 0
+        total_entropy = np.zeros(blen)
         num_bits = blen * length
         for i in range(length):
             if len(curr_word) == 0:
@@ -45,8 +47,11 @@ class PRC_watermark:
                 # For robustness, We don't want to re-draw a
                 # codeword in the middle of a token.
                 if len(curr_word) > 0 and not encode_random:
-                    print(max(p0, p1) / (p0 + p1))
                     p1_hat = p1 / (p0 + p1)
+                    total_entropy[ind] += (
+                        p1_hat * -log2(p1_hat + 1e-7)
+                        + (1 - p1_hat) * -log2(1 - p1_hat + 1e-7)
+                    )[0]
                     prob = p1_hat - (((-1) ** curr_word[0]) * min(p1_hat, 1 - p1_hat))
                     if random.random() < prob:
                         token_id += 1
@@ -57,13 +62,14 @@ class PRC_watermark:
                     curr_word = curr_word[1:]
                 elif (random.random()) < p1 / (p0 + p1):
                     token_id += 1
-
+            print(token_id)
             token = torch.tensor([[token_id]])
             inputs = torch.cat([inputs, token], dim=-1)
 
             past = output.past_key_values
             attn = torch.cat([attn, attn.new_ones((attn.shape[0], 1))], dim=-1)
         print(f"{num_changed / num_bits=}")
+        print(f"{total_entropy / length=}")
         return detokenize(inputs.detach().cpu()[0], self.tokenizer)
 
     def detect_watermark(self, text: str) -> bool:
@@ -114,5 +120,6 @@ if __name__ == "__main__":
             res = watermarker.generate(prompt=prompt, length=size, encode_random=False)
             detected = watermarker.detect_watermark(res[len(prompt) :])
             print(f"Run ended with {detected=}")
+            print(res)
             total_successes += int(detected)
         print(f"Succeeded in {total_successes} / {samples_per_size} attempts.")
