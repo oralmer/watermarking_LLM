@@ -104,6 +104,9 @@ class UndetectableWatermark:
         blen, token_to_id, id_to_token = binarize_setup(self.tokenizer)
         tokens = tokenize(text, self.tokenizer)[0]
         scores = []
+        perm, inv_perm = consistent_perm(
+            self.base_key, len(tokenizer)
+        )  # Not necessary, but makes the token indices spread uniformly.
         for key_len in range(1, self.max_seed_length + 1):
             for i in range(len(tokens) - key_len - self.num_tokens_per_draw):
                 split_score = 0
@@ -112,7 +115,9 @@ class UndetectableWatermark:
                 )
                 generated = tokens[i + key_len : i + key_len + self.num_tokens_per_draw]
                 for word_ind in range(len(generated)):
-                    token_bits = ("0" * blen + bin(generated[word_ind])[2:])[-blen:]
+                    token_bits = ("0" * blen + bin(perm[generated[word_ind]])[2:])[
+                        -blen:
+                    ]
                     for bit_ind in range(blen):
                         split_score += compute_score_function(
                             key, [word_ind, bit_ind], token_bits[bit_ind]
@@ -135,8 +140,8 @@ if __name__ == "__main__":
         "For today's homework assignment, please describe the reasons for the US Civil War.",
         "John F. Kennedy was just elected President of the United States after rising from the grave decades after his assassination. Due to miraculous developments in nanotechnology, Kennedy's brain was rebuilt from his remains and installed in the control center of a state-of-the art humanoid robot. Below is a transcript of his acceptance speech.",
     ]
-    response_sizes = [100]
-    samples_per_size = 20  # Set to 10 for a quicker run
+    response_sizes = [30]
+    samples_per_size = 10  # Set to 10 for a quicker run
     key = random.random()
     watermarker = UndetectableWatermark(10, 4, 4, str(key), model, tokenizer)
     total_max = 0
@@ -146,7 +151,7 @@ if __name__ == "__main__":
         print("Making samples of size " + str(size) + ":")
         for i in range(samples_per_size):
             prompt = random.choice(prompts)
-            res = watermarker.generate(prompt=prompt, length=size, encode_random=True)
+            res = watermarker.generate(prompt=prompt, length=size, encode_random=False)
             scores = watermarker.calculate_scores(res[len(prompt) :])
             max_score = max(scores)
             average_score = np.mean(scores)
