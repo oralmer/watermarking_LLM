@@ -8,8 +8,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 def PRF(key, input):
     # Lazy and insecure implementation, replace with a provably secure PRF for real applications
+    old_state = random.getstate()
     random.seed(str(key) + "||" + str(input))
-    return random.random()
+    res = random.random()
+    random.setstate(old_state)
+    return res
 
 
 def consistent_perm(key, n):

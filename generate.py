@@ -1,5 +1,9 @@
 import random
 import torch
+from matplotlib import pyplot as plt
+from sklearn.metrics import roc_curve
+from tqdm import trange
+
 from dynamic_ecc import DynamicECC
 from utils import (
     PRF,
@@ -233,13 +237,13 @@ if __name__ == "__main__":
         "For today's homework assignment, please describe the reasons for the US Civil War.",
         "John F. Kennedy was just elected President of the United States after rising from the grave decades after his assassination. Due to miraculous developments in nanotechnology, Kennedy's brain was rebuilt from his remains and installed in the control center of a state-of-the art humanoid robot. Below is a transcript of his acceptance speech.",
     ]
-    response_sizes = [10]
-    samples_per_size = 40  # Set to 10 for a quicker run
+    response_sizes = [10, 20, 50, 100, 200]
+    samples_per_size = 200  # Set to 10 for a quicker run
     for size in response_sizes:
-        total_score = 0
-        total_successes = 0
+        watermarked_scores = []
+        regular_scores = []
         print("Making samples of size " + str(size) + ":")
-        for i in range(samples_per_size):
+        for i in trange(samples_per_size, desc=f"{size=}"):
             key = random.random()
             prompt = random.choice(prompts)
             res = generate_watermarked_response(
@@ -249,10 +253,21 @@ if __name__ == "__main__":
                 prompt=prompt,
                 length=size,
             )
-            score = compute_score(key, res[len(prompt) :], tokenizer)
-            print(f"Run ended with score {score}")
-            total_score += score
-            if score > 0:
-                total_successes += 1
-        print(f"On average, scored {total_score / samples_per_size} .")
-        print(f"Succeeded in {total_successes} / {samples_per_size} attempts.")
+            watermarked_scores.append(compute_score(key, res[len(prompt) :], tokenizer))
+            regular_scores.append(
+                compute_score(random.random(), res[len(prompt) :], tokenizer)
+            )
+        plt.cla()
+        plt.hist(watermarked_scores, color="g", alpha=0.5, bins=30)
+        plt.hist(regular_scores, color="r", alpha=0.5, bins=30)
+        plt.title(f"results for {size=}")
+        plt.show()
+        plt.cla()
+        fpr, tpr, thresholds = roc_curve(
+            [0] * samples_per_size + [1] * samples_per_size,
+            regular_scores + watermarked_scores,
+        )
+        plt.plot(fpr, tpr)
+        plt.title(f"roc for {size=}")
+        plt.show()
+        print(f"{regular_scores=}\n{watermarked_scores=}")
