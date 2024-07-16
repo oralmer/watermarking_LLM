@@ -71,10 +71,10 @@ class UndetectableWatermark:
                     p1_hat = p1 / (p0 + p1)
                     token_id = token_id << 1
                     if random.random() < p1_hat:
-                        curr_entropy += p1_hat * -log2(p1_hat)
+                        curr_entropy += -log2(p1_hat)
                         token_id += 1
                     else:
-                        curr_entropy += (1 - p1_hat) * -log2(1 - p1_hat)
+                        curr_entropy += -log2(1 - p1_hat)
                 curr_key += str(token_id)
                 key_len += 1
             elif curr_biased_token < self.num_tokens_per_draw:
