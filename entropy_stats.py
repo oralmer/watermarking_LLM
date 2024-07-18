@@ -63,7 +63,7 @@ if __name__ == "__main__":
         "John F. Kennedy was just elected President of the United States after rising from the grave decades after his assassination. Due to miraculous developments in nanotechnology, Kennedy's brain was rebuilt from his remains and installed in the control center of a state-of-the art humanoid robot. Below is a transcript of his acceptance speech.",
     ]
     response_sizes = [300]
-    samples_per_size = 20  # Set to 10 for a quicker run
+    samples_per_size = 200  # Set to 10 for a quicker run
     for size in response_sizes:
         entropies = []
         print("Making samples of size " + str(size) + ":")
@@ -78,10 +78,12 @@ if __name__ == "__main__":
                 )
             )
         print(entropies)
-    entropies = np.sum(entropies, axis=0) / 20
-    plt.cla()
-    conv_size = 5
-    plt.plot(entropies[:-conv_size], color="r")
-    plt.plot(np.convolve(entropies, np.ones(conv_size), "valid") / conv_size, color="b")
-    plt.title(f"Average empirical entropy per token for {size=}")
-    plt.show()
+        entropies = np.sum(entropies, axis=0) / samples_per_size
+        plt.cla()
+        conv_size = 5
+        plt.plot(entropies[:-conv_size], color="r")
+        plt.plot(
+            np.convolve(entropies, np.ones(conv_size), "valid") / conv_size, color="b"
+        )
+        plt.title(f"Average empirical entropy per token for {size=}")
+        plt.show()
